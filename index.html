@@ -86,6 +86,28 @@
             const [user, setUser] = useState(null);
             const [loading, setLoading] = useState(false);
             const [members, setMembers] = useState([]);
+			const refreshMemberData = async (memberId) => {
+
+					const res = await callAPI({
+						action: "get_member_by_id",
+						id: memberId
+					});
+
+					if (res?.status === "success") {
+
+						setUser(res.data);
+
+						localStorage.setItem(
+							"bluecoffee_login",
+							JSON.stringify({
+								role: "member",
+								user: res.data
+							})
+						);
+
+					}
+
+				};
             const [isModalOpen, setIsModalOpen] = useState(false);
             const [isScannerOpen, setIsScannerOpen] = useState(false);
             const [selectedMember, setSelectedMember] = useState(null);
@@ -118,8 +140,15 @@
                         useEffect(() => {
 
                             if (view === 'member_dash' && user) {
+							
+								const interval = setInterval(() => {
 
-                                setTimeout(() => {
+									refreshMemberData(user.id);
+
+								}, 5000);
+
+								return () => clearInterval(interval);
+														setTimeout(() => {
 
                                     const el = document.getElementById("member-qr");
 
@@ -201,6 +230,7 @@ const fetchMembers = async () => {
     }
 
 };
+
 
 
            const handleLogin = async (e) => {
