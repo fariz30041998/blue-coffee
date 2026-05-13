@@ -53,7 +53,7 @@
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
-        const API_URL = "https://script.google.com/macros/s/AKfycbyS9PZ22pSy8qtYvhQHuBHZccDp1CArYEMRwQNOiuA6nBSOPBsx9l0LWuZioilXkpVBCA/exec";
+        const API_URL = "https://script.google.com/macros/s/AKfycbz6i5EROarlb1a7_TRUKRO45Qg4DqfmSC66ENNGb2krN6rRnIkgwRpEMRQ_v3zddQZ8lA/exec";
         const PrintLayout = ({ member }) => {
     if (!member) return null;
     return (
@@ -81,6 +81,33 @@
     );
 };
             const App = () => {
+			const printCard = (member) => {
+
+    setSelectedMember(member);
+
+    setTimeout(() => {
+
+        const target = document.getElementById("qr-print-target");
+
+        if (target) {
+
+            target.innerHTML = "";
+
+            new QRCode(target, {
+                text: member.id,
+                width: 70,
+                height: 70
+            });
+
+        }
+
+        setTimeout(() => {
+            window.print();
+        }, 300);
+
+    }, 300);
+
+};
             const [view, setView] = useState('landing'); 
             const [role, setRole] = useState(null);
             const [user, setUser] = useState(null);
