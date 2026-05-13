@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blue Coffee - Enterprise System v4.0</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- Library Scanner -->
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background: #f8fafc; }
+        
+        @media print {
+    /* Sembunyikan semua elemen di layar */
+    body * { 
+        visibility: hidden; 
+    }
+    
+    /* Tampilkan hanya area print secara paksa */
+    #print-area-container, #print-area-container * { 
+        visibility: visible !important; 
+    }
+
+    #print-area-container {
+        position: fixed;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        display: flex !important;
+        justify-content: center;
+        align-items: center;
+        background: white;
+        z-index: 9999;
+    }
+    
+
+    @page {
+        size: auto;
+        margin: 0mm;
+    }
+    }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        const API_URL = "https://script.google.com/macros/s/AKfycbz8aa5KnoXhYJsBRXgpHCyWATb1bTVTCeVzWULaOVUOcEde2KL76InAyGUVxjdt7lXjNA/exec";
+        const PrintLayout = ({ member }) => {
+    if (!member) return null;
+    return (
+        <div id="print-area" className="gradient-blue w-[85mm] h-[55mm] rounded-2xl p-6 text-white flex flex-col justify-between shadow-2xl relative">
+            <div className="flex justify-between items-start">
+                <div>
+                    <h1 className="font-black text-xl italic tracking-tighter">BLUE COFFEE</h1>
+                    <p className="text-[10px] uppercase tracking-[0.2em] opacity-80">Official Member</p>
+                </div>
+                {/* QR Code akan dirender di sini */}
+                <div id="qr-print-target" className="bg-white p-1.5 rounded-lg shadow-lg"></div>
+            </div>
+            
+            <div className="relative z-10">
+                <h2 className="text-2xl font-bold uppercase truncate mb-1">{member.name}</h2>
+                <div className="flex justify-between items-end">
+                    <p className="text-xs font-mono opacity-80 tracking-widest">{member.id}</p>
+                    <p className="text-[10px] font-bold opacity-50">v4.0 Enterprise</p>
+                </div>
+            </div>
+
+            {/* Dekorasi kartu agar tidak polos */}
+            <div className="absolute top-[-20%] right-[-10%] w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
+        </div>
+    );
+};
+            const App = () => {
+            const [view, setView] = useState('landing'); 
+            const [role, setRole] = useState(null);
+            const [user, setUser] = useState(null);
+            const [loading, setLoading] = useState(false);
+            const [members, setMembers] = useState([]);
+            const [isModalOpen, setIsModalOpen] = useState(false);
+            const [isScannerOpen, setIsScannerOpen] = useState(false);
+            const [selectedMember, setSelectedMember] = useState(null);
+            const [form, setForm] = useState({ name: '', pin: '' });
+                    useEffect(() => {
+
+                            // AUTO LOGIN DARI COOKIE
+                            const savedLogin = localStorage.getItem("bluecoffee_login");
+
+                            if (savedLogin) {
+                                const data = JSON.parse(savedLogin);
+
+                                setRole(data.role);
+
+                                if (data.role === "kasir") {
+                                    setView("kasir_dash");
+                                    fetchMembers();
+                                }
+
+                                if (data.role === "member") {
+                                    setUser(data.user);
+                                    setView("member_dash");
+                                }
+                            }
+
+                        }, []);
+
+
+                        // QR MEMBER DASHBOARD
+                        useEffect(() => {
+
+                            if (view === 'member_dash' && user) {
+
+                                setTimeout(() => {
+
+                                    const el = document.getElementById("member-qr");
+
+                                    if (el) {
+
+                                        el.innerHTML = "";
+
+                                        new QRCode(el, {
+                                            text: user.id,
+                                            width: 160,
+                                            height: 160
+                                        });
+
+                                    }
+
+                                }, 300);
+
+                            }
+
+                        }, [view, user]);
+
+
+                        // CLEANUP PRINT
+                        useEffect(() => {
+
+                            window.onafterprint = () => {
+
+                                setSelectedMember(null);
+
+                                const target = document.getElementById("qr-print-target");
+
+                                if (target) {
+                                    target.innerHTML = "";
+                                }
+
+                            };
+
+                        }, []);
+            const fetchMembers = async () => {
+            const res = await callAPI({ action: 'get_all_members' });
+                if (res?.status === 'success') setMembers(res.data);
+            };
+
+            const callAPI = async (data) => {
+                setLoading(true);
+                try {
+                    const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify(data) });
+                    const json = await res.json();
+                    setLoading(false);
+                    return json;
+                } catch (e) {
+                    setLoading(false);
+                    alert("Koneksi Error.");
+                    return null;
+                }
+            };
+
+           const handleLogin = async (e) => {
+
+                    e.preventDefault();
+
+                    const fd = new FormData(e.target);
+
+                    const payload = role === 'kasir'
+                        ? {
+                            action: 'login_staff',
+                            user: fd.get('id'),
+                            pass: fd.get('pass')
+                        }
+                        : {
+                            action: 'login_member',
+                            id: fd.get('id'),
+                            pin: fd.get('pass')
+                        };
+
+                    const res = await callAPI(payload);
+
+                    if (res?.status === 'success') {
+
+                        // SIMPAN LOGIN
+                        const loginData = {
+                            role: role,
+                            user: res.user || null
+                        };
+
+                        localStorage.setItem(
+                            "bluecoffee_login",
+                            JSON.stringify(loginData)
+                        );
+
+                        // MASUK DASHBOARD
+                        if (role === 'member') {
+                            setUser(res.user);
+                            setView('member_dash');
+                        }
+
+                        if (role === 'kasir') {
+                            setView('kasir_dash');
+                            fetchMembers();
+                        }
+
+                    } else {
+
+                        alert(res?.message || "Login gagal");
+
+                    }
+                };
+
+            // AUTO REFRESH setelah CRUD
+            const handleSaveMember = async (e) => {
+                e.preventDefault();
+                const action = selectedMember?.id ? 'edit_member' : 'register_member';
+                const res = await callAPI({ ...form, id: selectedMember?.id, action });
+                if (res?.status === 'success') {
+                    setIsModalOpen(false);
+                    setForm({ name: '', pin: '' });
+                    setSelectedMember(null);
+                    await fetchMembers(); // Auto Refresh
+                }
+            };
+
+            const deleteMember = async (id) => {
+                if (confirm("Hapus member?")) {
+                    const res = await callAPI({ action: 'delete_member', id });
+                    if (res?.status === 'success') await fetchMembers(); // Auto Refresh
+                }
+            };
+
+            const handleScanSuccess = async (decodedText) => {
+
+                    setTimeout(() => {
+                        setIsScannerOpen(false);
+                    }, 300);
+
+                    const res = await callAPI({
+                        action: 'get_member_by_id',
+                        id: decodedText
+                    });
+
+                    if (res?.status === 'success') {
+
+                        if (confirm(`Member Ditemukan: ${res.data.name}. Tambah 10 Poin?`)) {
+
+                            await callAPI({
+                                action: 'add_points',
+                                id: decodedText
+                            });
+
+                            await fetchMembers();
+
+                            alert("Poin berhasil ditambahkan!");
+
+                        }
+
+                    } else {
+
+                        alert("Member tidak ditemukan!");
+
+                    }
+
+                };
+
+          const printCard = (member) => {
+                setSelectedMember(member);
+
+                setTimeout(() => {
+                    const target = document.getElementById("qr-print-target");
+
+                    if (!target) {
+                        alert("Area print tidak ditemukan");
+                        return;
+                    }
+
+                    // Bersihkan QR sebelumnya
+                    target.innerHTML = "";
+
+                    // Generate QR baru
+                    new QRCode(target, {
+                        text: member.id,
+                        width: 80,
+                        height: 80,
+                        correctLevel: QRCode.CorrectLevel.H
+                    });
+
+                    // Tunggu QR selesai render
+                    setTimeout(() => {
+                        window.print();
+                    }, 500);
+
+                }, 300);
+            };
+
+            // COMPONENT: SCANNER MODAL
+            const ScannerModal = () => {
+
+                    const scannerRef = React.useRef(null);
+
+                    useEffect(() => {
+
+                        let mounted = true;
+
+                        const startScanner = async () => {
+
+                            try {
+
+                                // WAJIB HTTPS
+                                if (
+                                    location.protocol !== "https:" &&
+                                    location.hostname !== "localhost"
+                                ) {
+                                    alert("Scanner membutuhkan HTTPS");
+                                    return;
+                                }
+
+                                const reader = document.getElementById("reader");
+
+                                if (!reader) return;
+
+                                reader.innerHTML = "";
+
+                                // INIT SCANNER
+                                scannerRef.current = new Html5Qrcode("reader");
+
+                                // AMBIL LIST KAMERA
+                                const cameras = await Html5Qrcode.getCameras();
+
+                                if (!cameras || cameras.length === 0) {
+                                    alert("Kamera tidak ditemukan");
+                                    return;
+                                }
+
+                                // PILIH KAMERA BELAKANG
+                                const backCamera =
+                                    cameras.find(cam =>
+                                        cam.label.toLowerCase().includes("back")
+                                    ) || cameras[cameras.length - 1];
+
+                                if (!mounted) return;
+
+                                // START CAMERA
+                                await scannerRef.current.start(
+                                    backCamera.id,
+                                    {
+                                        fps: 10,
+                                        qrbox: {
+                                            width: 250,
+                                            height: 250
+                                        }
+                                    },
+
+                                    // SUCCESS SCAN
+                                    async (decodedText) => {
+
+                                        try {
+
+                                            if (scannerRef.current) {
+                                                await scannerRef.current.stop();
+                                                await scannerRef.current.clear();
+                                            }
+
+                                        } catch (e) {}
+
+                                        handleScanSuccess(decodedText);
+
+                                    },
+
+                                    // ERROR SCAN
+                                    (errorMessage) => {
+                                        // silent
+                                    }
+                                );
+
+                            } catch (err) {
+
+                                console.error(err);
+                                alert("Tidak bisa membuka kamera");
+
+                            }
+
+                        };
+
+                        startScanner();
+
+                        // CLEANUP
+                        return () => {
+
+                            mounted = false;
+
+                            if (scannerRef.current) {
+
+                                scannerRef.current
+                                    .stop()
+                                    .then(() => scannerRef.current.clear())
+                                    .catch(() => {});
+
+                            }
+
+                        };
+
+                    }, []);
+
+                    return (
+
+                        <div className="fixed inset-0 bg-slate-950/90 z-[60] flex items-center justify-center p-6">
+
+                            <div className="w-full max-w-md bg-slate-900 rounded-[2rem] p-5">
+
+                                <div className="flex justify-between items-center mb-5 text-white">
+
+                                    <h3 className="text-xl font-bold">
+                                        SCAN KARTU MEMBER
+                                    </h3>
+
+                                    <button
+                                        onClick={() => setIsScannerOpen(false)}
+                                        className="bg-red-500 px-4 py-2 rounded-xl text-sm font-bold"
+                                    >
+                                        Tutup
+                                    </button>
+
+                                </div>
+
+                                <div
+                                    id="reader"
+                                    className="overflow-hidden rounded-2xl bg-black"
+                                ></div>
+
+                                <p className="text-center text-slate-400 mt-5 text-sm italic">
+                                    Arahkan QR Code ke kamera
+                                </p>
+
+                            </div>
+
+                        </div>
+
+                    );
+
+                };
+
+                                const Nav = () => (
+                                    <nav className="flex justify-between items-center mb-8 px-2">
+                                        <h1 className="text-2xl font-black text-blue-900 tracking-tighter">BLUE COFFEE</h1>
+                                        <button onClick={() => {
+                                            localStorage.removeItem("bluecoffee_login");
+                                            setUser(null);
+                                            setRole(null);
+                                            setView("landing");
+
+                    }} className="text-red-500 font-bold text-sm bg-red-50 px-4 py-2 rounded-xl">LOGOUT</button>
+                                    </nav>
+                                );
+
+            // --- VIEW COMPONENTS ---
+
+            if (view === 'landing') return (
+                <div className="min-h-screen flex items-center justify-center p-6 bg-slate-900">
+                    <div className="w-full max-w-sm text-center">
+                        <div className="w-20 h-20 bg-blue-600 rounded-3xl mx-auto mb-8 flex items-center justify-center">
+                            <svg className="text-white w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                        </div>
+                        <h1 className="text-4xl font-black text-white mb-10">BLUE COFFEE SYS</h1>
+                        <div className="space-y-4">
+                            <button onClick={() => { setRole('kasir'); setView('login'); }} className="w-full bg-blue-600 text-white py-5 rounded-2xl font-bold">PORTAL KASIR</button>
+                            <button onClick={() => { setRole('member'); setView('login'); }} className="w-full bg-slate-800 text-slate-300 py-5 rounded-2xl font-bold border border-slate-700">MEMBER AREA</button>
+                        </div>
+                    </div>
+                </div>
+            );
+
+            if (view === 'login') return (
+                <div className="min-h-screen flex items-center justify-center p-6">
+                    <div className="bg-white p-10 rounded-[3rem] shadow-2xl w-full max-w-md">
+                        <h2 className="text-3xl font-black text-blue-950 mb-8 uppercase tracking-tighter">Login {role}</h2>
+                        <form onSubmit={handleLogin} className="space-y-4">
+                            <input name="id" type="text" placeholder="ID / Username" className="w-full p-5 bg-slate-50 rounded-2xl outline-none" required />
+                            <input name="pass" type="password" placeholder="Password / PIN" className="w-full p-5 bg-slate-50 rounded-2xl outline-none" required />
+                            <button className="w-full bg-blue-600 text-white py-5 rounded-2xl font-bold">
+                                {loading ? 'Memproses...' : 'MASUK'}
+                            </button>
+                            <button type="button" onClick={() => setView('landing')} className="w-full text-slate-400 font-bold text-sm">Kembali</button>
+                        </form>
+                    </div>
+                </div>
+            );
+      
+
+            if (view === 'kasir_dash') return (
+                <div className="max-w-5xl mx-auto p-6">
+                    <Nav />
+                    <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-8">
+                        <div>
+                            <h2 className="text-3xl font-black text-blue-950 italic">DATABASE MEMBER</h2>
+                            <p className="text-slate-400 text-sm">Total: {members.length} Member</p>
+                        </div>
+                        <div className="flex gap-2">
+                            <button onClick={() => {
+                                if (!isScannerOpen) {
+                                        setIsScannerOpen(true);
+                                    }
+
+                                 }} className="bg-slate-900 text-white px-6 py-4 rounded-2xl font-bold flex items-center gap-2">
+                                <span>📸</span> SCAN KARTU
+                            </button>
+                            <button onClick={() => { setSelectedMember(null); setForm({name:'', pin:''}); setIsModalOpen(true); }} className="bg-blue-600 text-white px-6 py-4 rounded-2xl font-bold">
+                                + DAFTAR
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* TABEL MEMBER */}
+                    <div className="bg-white rounded-[2.5rem] shadow-xl overflow-hidden">
+                        <table className="w-full text-left">
+                            <thead className="bg-slate-50 border-b">
+                                <tr>
+                                    <th className="p-6 text-xs font-bold text-slate-400 uppercase">Informasi</th>
+                                    <th className="p-6 text-xs font-bold text-slate-400 uppercase text-center">Poin</th>
+                                    <th className="p-6 text-xs font-bold text-slate-400 uppercase text-right">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y">
+                                {members.map(m => (
+                                    <tr key={m.id} className="hover:bg-blue-50/50 transition">
+                                        <td className="p-6">
+                                            <p className="font-bold text-blue-950">{m.name}</p>
+                                            <p className="text-xs text-slate-400 uppercase">{m.id}</p>
+                                        </td>
+                                        <td className="p-6 text-center">
+                                            <span className="bg-blue-100 text-blue-700 px-4 py-2 rounded-full font-black text-sm">{m.points}</span>
+                                        </td>
+                                        <td className="p-6 text-right space-x-2">
+                                            <button onClick={() => { setSelectedMember(m); setForm({name:m.name, pin:m.pin}); setIsModalOpen(true); }} className="text-slate-400 font-bold text-xs hover:text-blue-600">Edit</button>
+                                            <button onClick={() => printCard(m)} className="text-slate-400 font-bold text-xs hover:text-slate-900">Cetak</button>
+                                            <button onClick={() => deleteMember(m.id)} className="text-red-300 font-bold text-xs hover:text-red-600">Hapus</button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {isModalOpen && (
+                        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-6 z-50">
+                            <div className="bg-white w-full max-w-md rounded-[3rem] p-10 shadow-2xl">
+                                <h3 className="text-2xl font-black mb-6">{selectedMember ? 'Update Data' : 'Registrasi Baru'}</h3>
+                                <form onSubmit={handleSaveMember} className="space-y-4">
+                                    <input value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="Nama Lengkap" className="w-full p-4 bg-slate-50 rounded-2xl outline-none" required />
+                                    <input value={form.pin} onChange={e => setForm({...form, pin: e.target.value})} placeholder="PIN Keamanan" className="w-full p-4 bg-slate-50 rounded-2xl outline-none" required />
+                                    <button className="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold shadow-lg">SIMPAN</button>
+                                    <button type="button" onClick={() => setIsModalOpen(false)} className="w-full text-slate-400 font-bold">Batalkan</button>
+                                </form>
+                            </div>
+                        </div>
+                    )}
+
+                    {isScannerOpen && <ScannerModal />}
+                
+                        <div id="print-area-container"
+                         className={selectedMember ? "fixed inset-0 flex items-center justify-center z-[9999] bg-white" : "hidden"}
+            >
+                        <PrintLayout member={selectedMember} />
+                    </div>
+                    </div>
+                
+            );
+
+                    if (view === 'member_dash') return (
+
+                        <div className="max-w-md mx-auto p-6">
+
+                            <Nav />
+
+                            <div className="bg-blue-600 rounded-[3rem] p-10 text-white shadow-2xl text-center mb-6 relative overflow-hidden">
+
+                                <p className="text-blue-200 text-xs font-bold uppercase mb-2">
+                                    Poin Anda
+                                </p>
+
+                                <h2 className="text-8xl font-black mb-8">
+                                    {user?.points || 0}
+                                </h2>
+
+                                <div className="bg-white p-6 rounded-[2.5rem] inline-block shadow-inner">
+                                    <div id="member-qr"></div>
+                                </div>
+
+                                <p className="mt-6 text-[10px] text-blue-300 font-bold tracking-widest">
+                                    {user?.id}
+                                </p>
+
+                            </div>
+
+                        </div>
+
+);
+
+                    return null;
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
