@@ -53,7 +53,7 @@
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
-        const API_URL = "https://script.google.com/macros/s/AKfycbwIPUeSjSgLkq3dHxs0iIdmkjrJjiDhVg0MpAtSnKWQEiphEfyiSWJBp5R8q02XZO5iNA/exec";
+        const API_URL = "https://script.google.com/macros/s/AKfycbwk6_DwW1mTAJUQP4VQlkbKPWd966gTu30OtsWKcPauuIl7ctIQIVe05Tq93NAmhdJOeA/exec";
         const PrintLayout = ({ member }) => {
     if (!member) return null;
     return (
@@ -287,7 +287,7 @@ const fetchMembers = async () => {
 
                     if (res?.status === 'success') {
 
-                        if (confirm(`Member Ditemukan: ${res.user.name}. Tambah 10 Poin?`)) {
+                        if (confirm(`Member Ditemukan: ${res.data.name}. Tambah 10 Poin?`)) {
 
                             await callAPI({
                                 action: 'add_points',
