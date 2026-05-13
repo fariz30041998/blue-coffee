@@ -337,67 +337,60 @@ const fetchMembers = async () => {
 
             const handleScanSuccess = async (decodedText) => {
 
-                    setTimeout(() => {
-                        setIsScannerOpen(false);
-                    }, 300);
+    try {
 
-                    const res = await callAPI({
-                        action: 'get_member_by_id',
-                        id: decodedText
-                    });
+        const res = await callAPI({
+            action: 'get_member_by_id',
+            id: decodedText
+        });
 
-                    if (res?.status === 'success') {
+        if (res?.status === 'success') {
 
-                        if (confirm(`Member Ditemukan: ${res.data.name}. Tambah 10 Poin?`)) {
+            const confirmAdd = confirm(
+                `Member Ditemukan: ${res.data.name}\nTambah 10 Poin?`
+            );
 
-                            await callAPI({
-                                action: 'add_points',
-                                id: decodedText
-                            });
+            if (confirmAdd) {
 
-                            await fetchMembers();
+                const add = await callAPI({
+                    action: 'add_points',
+                    id: decodedText
+                });
 
-                            alert("Poin berhasil ditambahkan!");
+                if (add?.status === "success") {
 
-                        }
+                    await fetchMembers();
 
-                    } else {
+                    alert("Poin berhasil ditambahkan!");
 
-                        alert("Member tidak ditemukan!");
+                } else {
 
-                    }
+                    alert("Gagal tambah poin");
 
-                };
+                }
 
-          const printCard = (member) => {
-                setSelectedMember(member);
+            }
 
-                setTimeout(() => {
-                    const target = document.getElementById("qr-print-target");
+        } else {
 
-                    if (!target) {
-                        alert("Area print tidak ditemukan");
-                        return;
-                    }
+            alert("Member tidak ditemukan!");
 
-                    // Bersihkan QR sebelumnya
-                    target.innerHTML = "";
+        }
 
-                    // Generate QR baru
-                    new QRCode(target, {
-                        text: member.id,
-                        width: 80,
-                        height: 80,
-                        correctLevel: QRCode.CorrectLevel.H
-                    });
+    } catch (err) {
 
-                    // Tunggu QR selesai render
-                    setTimeout(() => {
-                        window.print();
-                    }, 500);
+        console.error(err);
 
-                }, 300);
-            };
+        alert("Terjadi kesalahan scanner");
+
+    } finally {
+
+        // TUTUP SCANNER DI PALING AKHIR
+        setIsScannerOpen(false);
+
+    }
+
+};
 
 
 const ScannerModal = () => {
@@ -456,11 +449,11 @@ const ScannerModal = () => {
 
                         try {
 
-                            if (scannerRef.current) {
+                            if (scannerRef.current?.isScanning) {
+    await scannerRef.current.stop();
+}
 
-                                await scannerRef.current.stop();
-                                await scannerRef.current.clear();
-
+await scannerRef.current.clear();
                             }
 
                         } catch (e) {}
