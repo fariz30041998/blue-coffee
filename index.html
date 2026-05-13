@@ -137,38 +137,46 @@
 
 
                         // QR MEMBER DASHBOARD
-                        useEffect(() => {
+                       useEffect(() => {
 
-                            if (view === 'member_dash' && user) {
-							
-								const interval = setInterval(() => {
+    if (view === 'member_dash' && user) {
 
-									refreshMemberData(user.id);
+        // AUTO REFRESH POINT
+        const interval = setInterval(() => {
 
-								}, 5000);
+            refreshMemberData(user.id);
 
-								return () => clearInterval(interval);
-														setTimeout(() => {
+        }, 5000);
 
-                                    const el = document.getElementById("member-qr");
+        // RENDER QR
+        setTimeout(() => {
 
-                                    if (el) {
+            const el = document.getElementById("member-qr");
 
-                                        el.innerHTML = "";
+            if (el) {
 
-                                        new QRCode(el, {
-                                            text: user.id,
-                                            width: 160,
-                                            height: 160
-                                        });
+                el.innerHTML = "";
 
-                                    }
+                new QRCode(el, {
+                    text: user.id,
+                    width: 160,
+                    height: 160
+                });
 
-                                }, 300);
+            }
 
-                            }
+        }, 300);
 
-                        }, [view, user]);
+        // CLEANUP
+        return () => {
+
+            clearInterval(interval);
+
+        };
+
+    }
+
+}, [view, user]);
 
 
                         // CLEANUP PRINT
@@ -235,54 +243,77 @@ const fetchMembers = async () => {
 
            const handleLogin = async (e) => {
 
-                    e.preventDefault();
+    e.preventDefault();
 
-                    const fd = new FormData(e.target);
+    if (loading) return;
 
-                    const payload = role === 'kasir'
-                        ? {
-                            action: 'login_staff',
-                            user: fd.get('id'),
-                            pass: fd.get('pass')
-                        }
-                        : {
-                            action: 'login_member',
-                            id: fd.get('id'),
-                            pin: fd.get('pass')
-                        };
+    const fd = new FormData(e.target);
 
-                    const res = await callAPI(payload);
+    const payload = role === 'kasir'
+        ? {
+            action: 'login_staff',
+            user: fd.get('id'),
+            pass: fd.get('pass')
+        }
+        : {
+            action: 'login_member',
+            id: fd.get('id'),
+            pin: fd.get('pass')
+        };
 
-                    if (res?.status === 'success') {
+    try {
 
-                        // SIMPAN LOGIN
-                        const loginData = {
-                            role: role,
-                            user: res.user || null
-                        };
+        setLoading(true);
 
-                        localStorage.setItem(
-                            "bluecoffee_login",
-                            JSON.stringify(loginData)
-                        );
+        const res = await callAPI(payload);
 
-                        // MASUK DASHBOARD
-                        if (role === 'member') {
-                            setUser(res.user);
-                            setView('member_dash');
-                        }
+        if (res?.status === 'success') {
 
-                        if (role === 'kasir') {
-                            setView('kasir_dash');
-                            fetchMembers();
-                        }
+            const loginData = {
+                role: role,
+                user: res.user || null
+            };
 
-                    } else {
+            localStorage.setItem(
+                "bluecoffee_login",
+                JSON.stringify(loginData)
+            );
 
-                        alert(res?.message || "Login gagal");
+            if (role === 'member') {
 
-                    }
-                };
+                setUser(res.user);
+
+                setView('member_dash');
+
+            }
+
+            if (role === 'kasir') {
+
+                setView('kasir_dash');
+
+                await fetchMembers();
+
+            }
+
+        } else {
+
+            alert(res?.message || "Login gagal");
+
+        }
+
+    } catch (err) {
+
+        console.error(err);
+
+        alert("Terjadi kesalahan login");
+
+    } finally {
+
+        setLoading(false);
+
+    }
+
+};
 
             // AUTO REFRESH setelah CRUD
             const handleSaveMember = async (e) => {
